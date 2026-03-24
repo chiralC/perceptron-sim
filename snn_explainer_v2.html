@@ -1,0 +1,381 @@
+
+<div style="padding: 1rem 0; font-family: var(--font-sans);">
+
+<div style="display:flex; gap:8px; margin-bottom:1.5rem; flex-wrap:wrap;">
+  <button onclick="switchTab('lif')" id="btn-lif" style="padding:8px 16px; border-radius:8px; border:1.5px solid #378ADD; background:#E6F1FB; color:#0C447C; font-size:13px; font-weight:500; cursor:pointer;">① Spiking neuron (LIF)</button>
+  <button onclick="switchTab('compare')" id="btn-compare" style="padding:8px 16px; border-radius:8px; border:1.5px solid var(--color-border-secondary); background:transparent; color:var(--color-text-secondary); font-size:13px; cursor:pointer;">② ANN vs SNN energy</button>
+  <button onclick="switchTab('stdp')" id="btn-stdp" style="padding:8px 16px; border-radius:8px; border:1.5px solid var(--color-border-secondary); background:transparent; color:var(--color-text-secondary); font-size:13px; cursor:pointer;">③ STDP learning</button>
+</div>
+
+<!-- PANEL 1: LIF -->
+<div id="panel-lif">
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.25rem;">
+    <div style="background:var(--color-background-secondary); border-radius:8px; padding:12px;">
+      <div style="font-size:12px; color:var(--color-text-secondary); margin-bottom:10px; font-weight:500;">CONTROLS</div>
+      <div style="margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span style="font-size:12px; color:var(--color-text-secondary);">Input current</span><span style="font-size:12px; font-weight:500;" id="v-current">1.5</span></div>
+        <input type="range" min="0" max="3" step="0.1" value="1.5" id="sl-current" style="width:100%" oninput="document.getElementById('v-current').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+      <div style="margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span style="font-size:12px; color:var(--color-text-secondary);">Threshold</span><span style="font-size:12px; font-weight:500;" id="v-thresh">0.65</span></div>
+        <input type="range" min="0.3" max="1" step="0.05" value="0.65" id="sl-thresh" style="width:100%" oninput="document.getElementById('v-thresh').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+      <div style="margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span style="font-size:12px; color:var(--color-text-secondary);">Leak rate</span><span style="font-size:12px; font-weight:500;" id="v-leak">0.05</span></div>
+        <input type="range" min="0.01" max="0.15" step="0.01" value="0.05" id="sl-leak" style="width:100%" oninput="document.getElementById('v-leak').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+      <div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span style="font-size:12px; color:var(--color-text-secondary);">Synaptic weight</span><span style="font-size:12px; font-weight:500;" id="v-weight">0.50</span></div>
+        <input type="range" min="0.1" max="1" step="0.05" value="0.5" id="sl-weight" style="width:100%" oninput="document.getElementById('v-weight').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="background:var(--color-background-secondary); border-radius:8px; padding:12px; flex:1;">
+        <div style="font-size:11px; color:var(--color-text-secondary); font-weight:500; margin-bottom:6px;">WHAT YOU'RE SEEING</div>
+        <p style="font-size:12px; color:var(--color-text-primary); line-height:1.6; margin-bottom:6px;">The <span style="color:#EF9F27; font-weight:500;">orange line</span> is the neuron's membrane potential — charge building up over time. When it crosses the <span style="color:#888; font-weight:500;">dashed threshold</span>, it fires a <span style="color:#E24B4A; font-weight:500;">spike</span> and resets to zero.</p>
+        <p style="font-size:12px; color:var(--color-text-secondary); line-height:1.6;">Think of it as filling a bucket. Leak rate slowly drains it. Synaptic weight scales how much each incoming signal contributes.</p>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
+        <div style="background:var(--color-background-secondary); border-radius:8px; padding:8px; text-align:center;">
+          <div style="font-size:10px; color:var(--color-text-secondary); margin-bottom:3px;">Spikes</div>
+          <div style="font-size:20px; font-weight:500;" id="stat-spikes">0</div>
+        </div>
+        <div style="background:var(--color-background-secondary); border-radius:8px; padding:8px; text-align:center;">
+          <div style="font-size:10px; color:var(--color-text-secondary); margin-bottom:3px;">Fire rate</div>
+          <div style="font-size:20px; font-weight:500;" id="stat-rate">0</div>
+        </div>
+        <div style="background:var(--color-background-secondary); border-radius:8px; padding:8px; text-align:center;">
+          <div style="font-size:10px; color:var(--color-text-secondary); margin-bottom:3px;">Silent</div>
+          <div style="font-size:20px; font-weight:500;" id="stat-silent">0%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <canvas id="lif-canvas" style="width:100%; border-radius:8px; border:0.5px solid var(--color-border-tertiary); display:block;" height="180"></canvas>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:1rem;">
+    <div style="border-left:3px solid #378ADD; padding-left:10px;">
+      <div style="font-size:11px; font-weight:500; color:#0C447C; margin-bottom:3px;">Try: raise threshold</div>
+      <div style="font-size:11px; color:var(--color-text-secondary); line-height:1.5;">The neuron fires less often — it's harder to trigger. In a real brain this could mean a neuron that only responds to strong stimuli.</div>
+    </div>
+    <div style="border-left:3px solid #EF9F27; padding-left:10px;">
+      <div style="font-size:11px; font-weight:500; color:#633806; margin-bottom:3px;">Try: raise leak rate</div>
+      <div style="font-size:11px; color:var(--color-text-secondary); line-height:1.5;">Charge drains faster, so the neuron needs more input to fire. High leak = forgetful neuron. Low leak = one that accumulates signals over time.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 2: Energy -->
+<div id="panel-compare" style="display:none;">
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.25rem;">
+    <div style="background:var(--color-background-secondary); border-radius:8px; padding:12px;">
+      <div style="font-size:12px; color:var(--color-text-secondary); margin-bottom:10px; font-weight:500;">CONTROLS</div>
+      <div style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span style="font-size:12px; color:var(--color-text-secondary);">Input sparsity</span><span style="font-size:12px; font-weight:500;" id="v-sparsity">30%</span></div>
+        <input type="range" min="1" max="100" step="1" value="30" id="sl-sparsity" style="width:100%" oninput="updateEnergy(this.value)">
+      </div>
+      <div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span style="font-size:12px; color:var(--color-text-secondary);">Network size</span><span style="font-size:12px; font-weight:500;" id="v-size">1000</span></div>
+        <input type="range" min="100" max="10000" step="100" value="1000" id="sl-size" style="width:100%" oninput="updateSize(this.value)">
+      </div>
+    </div>
+    <div style="background:var(--color-background-secondary); border-radius:8px; padding:12px;">
+      <div style="font-size:11px; color:var(--color-text-secondary); font-weight:500; margin-bottom:6px;">WHY THIS MATTERS</div>
+      <p style="font-size:12px; color:var(--color-text-primary); line-height:1.6; margin-bottom:6px;"><strong style="font-weight:500;">ANNs</strong> compute every neuron on every clock tick — 100% active, always. <strong style="font-weight:500;">SNNs</strong> only activate when a spike arrives.</p>
+      <p style="font-size:12px; color:var(--color-text-secondary); line-height:1.6;">Sparsity = how often events actually happen. At 30% sparsity, 70% of the SNN is doing nothing — spending zero energy. An ANN can't do this.</p>
+    </div>
+  </div>
+  <div style="margin-bottom:1rem;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+      <span style="font-size:12px; color:var(--color-text-secondary); width:50px;">ANN</span>
+      <div style="flex:1; height:24px; background:var(--color-background-secondary); border-radius:6px; overflow:hidden;">
+        <div id="bar-ann" style="height:100%; width:100%; background:#D85A30; border-radius:6px; transition:width 0.3s; display:flex; align-items:center; padding-left:8px;">
+          <span style="font-size:11px; color:#fff; font-weight:500;" id="lbl-ann">800 mJ</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="font-size:12px; color:var(--color-text-secondary); width:50px;">SNN</span>
+      <div style="flex:1; height:24px; background:var(--color-background-secondary); border-radius:6px; overflow:hidden;">
+        <div id="bar-snn" style="height:100%; width:24%; background:#1D9E75; border-radius:6px; transition:width 0.3s; display:flex; align-items:center; padding-left:8px;">
+          <span style="font-size:11px; color:#fff; font-weight:500;" id="lbl-snn">240 mJ</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:1rem;">
+    <div style="background:var(--color-background-secondary); border-radius:8px; padding:10px; text-align:center;">
+      <div style="font-size:10px; color:var(--color-text-secondary); margin-bottom:3px;">ANN active</div>
+      <div style="font-size:20px; font-weight:500;">100%</div>
+    </div>
+    <div style="background:var(--color-background-secondary); border-radius:8px; padding:10px; text-align:center;">
+      <div style="font-size:10px; color:var(--color-text-secondary); margin-bottom:3px;">SNN active</div>
+      <div style="font-size:20px; font-weight:500;" id="snn-active">30%</div>
+    </div>
+    <div style="background:var(--color-background-secondary); border-radius:8px; padding:10px; text-align:center;">
+      <div style="font-size:10px; color:var(--color-text-secondary); margin-bottom:3px;">SNN saving</div>
+      <div style="font-size:20px; font-weight:500; color:#1D9E75;" id="snn-saving">70%</div>
+    </div>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+    <div style="border-left:3px solid #D85A30; padding-left:10px;">
+      <div style="font-size:11px; font-weight:500; color:#993C1D; margin-bottom:3px;">Try: sparsity = 100%</div>
+      <div style="font-size:11px; color:var(--color-text-secondary); line-height:1.5;">Both networks are equally active — SNN loses its advantage. Real-world sensor data is rarely this dense.</div>
+    </div>
+    <div style="border-left:3px solid #1D9E75; padding-left:10px;">
+      <div style="font-size:11px; font-weight:500; color:#085041; margin-bottom:3px;">Try: sparsity = 5%</div>
+      <div style="font-size:11px; color:var(--color-text-secondary); line-height:1.5;">This is realistic for an event camera or a touch sensor. SNN uses a tiny fraction of ANN's energy.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL 3: STDP -->
+<div id="panel-stdp" style="display:none;">
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.25rem;">
+    <div style="background:var(--color-background-secondary); border-radius:8px; padding:12px;">
+      <div style="font-size:11px; color:var(--color-text-secondary); font-weight:500; margin-bottom:6px;">THE LEARNING RULE</div>
+      <p style="font-size:12px; color:var(--color-text-primary); line-height:1.6; margin-bottom:8px;"><strong style="font-weight:500;">If A fires before B</strong> → A probably caused B to fire → synapse <span style="color:#1D9E75; font-weight:500;">strengthens</span>.</p>
+      <p style="font-size:12px; color:var(--color-text-primary); line-height:1.6; margin-bottom:8px;"><strong style="font-weight:500;">If B fires before A</strong> → A had nothing to do with it → synapse <span style="color:#E24B4A; font-weight:500;">weakens</span>.</p>
+      <p style="font-size:12px; color:var(--color-text-secondary); line-height:1.6;">No backward pass. No global error signal. Just two neurons and their spike timestamps. This is how a brain learns without a teacher.</p>
+    </div>
+    <div style="background:var(--color-background-secondary); border-radius:8px; padding:12px;">
+      <div style="font-size:11px; color:var(--color-text-secondary); font-weight:500; margin-bottom:6px;">VS BACKPROPAGATION</div>
+      <div style="font-size:12px; color:var(--color-text-primary); line-height:1.6; margin-bottom:6px;"><span style="font-weight:500;">ANN backprop:</span> run the whole network, calculate global error, send it backwards through every layer, update every weight. Requires the full dataset to be present.</div>
+      <div style="font-size:12px; color:var(--color-text-secondary); line-height:1.6;"><span style="font-weight:500;">STDP:</span> each synapse updates itself using only local timing info. Continuous, online, no dataset needed.</div>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:1rem; align-items:flex-start; margin-bottom:1rem;">
+    <div style="flex:1; border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:14px; text-align:center;">
+      <div style="font-size:13px; font-weight:500; margin-bottom:10px; color:var(--color-text-primary);">Neuron A <span style="font-size:11px; color:var(--color-text-secondary); font-weight:400;">(pre-synaptic)</span></div>
+      <div style="width:50px; height:70px; border:2px solid #378ADD; border-top:none; border-radius:0 0 6px 6px; margin:0 auto 6px; position:relative; overflow:hidden; background:var(--color-background-primary);">
+        <div id="fill-a" style="position:absolute; bottom:0; left:0; right:0; height:0%; background:#B5D4F4; transition:height 0.1s;"></div>
+      </div>
+      <div style="font-size:11px; color:var(--color-text-secondary); margin-bottom:8px;" id="pot-a-txt">V: 0.00</div>
+      <div id="spike-a" style="width:10px; height:10px; border-radius:50%; background:var(--color-border-tertiary); margin:0 auto 10px;"></div>
+      <button onclick="stimA()" style="padding:6px 14px; border-radius:8px; border:0.5px solid var(--color-border-secondary); background:var(--color-background-primary); color:var(--color-text-primary); font-size:12px; cursor:pointer;">Stimulate A</button>
+    </div>
+
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding-top:1.5rem; gap:4px; min-width:80px;">
+      <div style="font-size:11px; color:var(--color-text-secondary);">synapse</div>
+      <div style="font-size:26px; font-weight:500; color:var(--color-text-primary);" id="w-display">0.50</div>
+      <div style="font-size:16px; color:var(--color-text-secondary);">→</div>
+      <div style="font-size:11px; height:14px; font-weight:500;" id="w-delta"></div>
+    </div>
+
+    <div style="flex:1; border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:14px; text-align:center;">
+      <div style="font-size:13px; font-weight:500; margin-bottom:10px; color:var(--color-text-primary);">Neuron B <span style="font-size:11px; color:var(--color-text-secondary); font-weight:400;">(post-synaptic)</span></div>
+      <div style="width:50px; height:70px; border:2px solid #D85A30; border-top:none; border-radius:0 0 6px 6px; margin:0 auto 6px; position:relative; overflow:hidden; background:var(--color-background-primary);">
+        <div id="fill-b" style="position:absolute; bottom:0; left:0; right:0; height:0%; background:#F5C4B3; transition:height 0.1s;"></div>
+      </div>
+      <div style="font-size:11px; color:var(--color-text-secondary); margin-bottom:8px;" id="pot-b-txt">V: 0.00</div>
+      <div id="spike-b" style="width:10px; height:10px; border-radius:50%; background:var(--color-border-tertiary); margin:0 auto 10px;"></div>
+      <button onclick="stimB()" style="padding:6px 14px; border-radius:8px; border:0.5px solid var(--color-border-secondary); background:var(--color-background-primary); color:var(--color-text-primary); font-size:12px; cursor:pointer;">Stimulate B</button>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+    <button onclick="resetSTDP()" style="padding:6px 14px; border-radius:8px; border:0.5px solid var(--color-border-secondary); background:transparent; color:var(--color-text-primary); font-size:12px; cursor:pointer;">Reset</button>
+    <button onclick="demoStrengthen()" style="padding:6px 14px; border-radius:8px; border:0.5px solid #1D9E75; background:#E1F5EE; color:#085041; font-size:12px; cursor:pointer;">Demo: A then B → strengthen</button>
+    <button onclick="demoWeaken()" style="padding:6px 14px; border-radius:8px; border:0.5px solid #D85A30; background:#FAECE7; color:#4A1B0C; font-size:12px; cursor:pointer;">Demo: B then A → weaken</button>
+  </div>
+  <div id="stdp-log" style="font-size:12px; line-height:1.9; min-height:36px; color:var(--color-text-secondary);"></div>
+</div>
+
+</div>
+
+<script>
+var activePanel = 'lif';
+var lifLoop = null, lifV = 0, lifT = 0, lifSpikes = 0, lifData = [], lifSpikeArr = [];
+
+function switchTab(name) {
+  ['lif','compare','stdp'].forEach(function(t) {
+    var btn = document.getElementById('btn-'+t);
+    var panel = document.getElementById('panel-'+t);
+    var isActive = t === name;
+    panel.style.display = isActive ? 'block' : 'none';
+    btn.style.border = isActive ? '1.5px solid #378ADD' : '1.5px solid var(--color-border-secondary)';
+    btn.style.background = isActive ? '#E6F1FB' : 'transparent';
+    btn.style.color = isActive ? '#0C447C' : 'var(--color-text-secondary)';
+    btn.style.fontWeight = isActive ? '500' : '400';
+  });
+  activePanel = name;
+  if (name === 'lif') startLIF(); else stopLIF();
+}
+
+function startLIF() {
+  stopLIF();
+  lifV = 0; lifT = 0; lifSpikes = 0; lifData = []; lifSpikeArr = [];
+  lifLoop = setInterval(stepLIF, 28);
+}
+function stopLIF() { if (lifLoop) { clearInterval(lifLoop); lifLoop = null; } }
+
+function stepLIF() {
+  var I = parseFloat(document.getElementById('sl-current').value);
+  var thresh = parseFloat(document.getElementById('sl-thresh').value);
+  var leak = parseFloat(document.getElementById('sl-leak').value);
+  var w = parseFloat(document.getElementById('sl-weight').value);
+  var dt = 0.02;
+  lifV = lifV + dt * (I * w - lifV * leak * 20);
+  var fired = false;
+  if (lifV >= thresh) { lifV = 0; fired = true; lifSpikes++; }
+  lifData.push({ v: Math.min(lifV, thresh + 0.05), thresh: thresh });
+  lifSpikeArr.push(fired);
+  if (lifData.length > 280) { lifData.shift(); lifSpikeArr.shift(); }
+  lifT += dt;
+  drawLIF();
+  var silent = Math.round(lifSpikeArr.filter(function(s){ return !s; }).length / lifSpikeArr.length * 100);
+  document.getElementById('stat-spikes').textContent = lifSpikes;
+  document.getElementById('stat-rate').textContent = lifT > 0 ? Math.round(lifSpikes / lifT) : 0;
+  document.getElementById('stat-silent').textContent = silent + '%';
+}
+
+function drawLIF() {
+  var c = document.getElementById('lif-canvas');
+  if (!c) return;
+  var W = c.offsetWidth; c.width = W; c.height = 180;
+  var ctx = c.getContext('2d');
+  var N = lifData.length;
+  if (N < 2) return;
+  var thresh = lifData[N-1].thresh;
+  var maxV = thresh * 1.35;
+  ctx.clearRect(0, 0, W, 180);
+  var ty = 170 - (thresh / maxV) * 155;
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = '#888780'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, ty); ctx.lineTo(W, ty); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#888780'; ctx.font = '11px sans-serif';
+  ctx.fillText('threshold', 4, ty - 4);
+  ctx.beginPath(); ctx.strokeStyle = '#EF9F27'; ctx.lineWidth = 2;
+  for (var i = 0; i < N; i++) {
+    var x = i / (N - 1) * W;
+    var y = 170 - (lifData[i].v / maxV) * 155;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    if (lifSpikeArr[i]) {
+      ctx.stroke();
+      ctx.beginPath(); ctx.strokeStyle = '#E24B4A'; ctx.lineWidth = 1.5;
+      ctx.moveTo(x, y); ctx.lineTo(x, 8); ctx.stroke();
+      ctx.beginPath(); ctx.strokeStyle = '#EF9F27'; ctx.lineWidth = 2;
+      ctx.moveTo(x, 170);
+    }
+  }
+  ctx.stroke();
+}
+
+startLIF();
+
+function updateEnergy(val) {
+  var sparsity = parseInt(val);
+  var size = parseInt(document.getElementById('sl-size').value);
+  document.getElementById('v-sparsity').textContent = sparsity + '%';
+  var annE = size * 0.8;
+  var snnE = Math.round(annE * sparsity / 100 * 1.1);
+  var snnPct = Math.max(2, Math.round(snnE / annE * 100));
+  var saving = 100 - Math.round(snnE / annE * 100);
+  document.getElementById('bar-ann').style.width = '100%';
+  document.getElementById('bar-snn').style.width = snnPct + '%';
+  document.getElementById('lbl-ann').textContent = Math.round(annE) + ' mJ';
+  document.getElementById('lbl-snn').textContent = snnE + ' mJ';
+  document.getElementById('snn-active').textContent = sparsity + '%';
+  var savEl = document.getElementById('snn-saving');
+  savEl.textContent = saving + '%';
+  savEl.style.color = saving > 50 ? '#1D9E75' : '#EF9F27';
+}
+
+function updateSize(val) {
+  document.getElementById('v-size').textContent = parseInt(val).toLocaleString();
+  updateEnergy(document.getElementById('sl-sparsity').value);
+}
+
+var pA = 0, pB = 0, sW = 0.5, lastA = -999, lastB = -999, sT = 0;
+
+function stimA() {
+  pA += 0.4; if (pA >= 0.65) { pA = 0; fireA(); } updateBuckets();
+}
+function stimB() {
+  pB += 0.4; if (pB >= 0.65) { pB = 0; fireB(); } updateBuckets();
+}
+
+function fireA() {
+  flash('spike-a', '#378ADD');
+  var dt = sT - lastB; lastA = sT++;
+  if (dt > 0 && dt < 10) {
+    var dw = -(0.04 * Math.exp(-dt / 5));
+    sW = Math.max(0.01, sW + dw);
+    log('A fired after B — synapse weakened (' + dw.toFixed(3) + ')', false);
+  }
+  updateW();
+}
+function fireB() {
+  flash('spike-b', '#D85A30');
+  var dt = sT - lastA; lastB = sT++;
+  if (dt > 0 && dt < 10) {
+    var dw = 0.06 * Math.exp(-dt / 5);
+    sW = Math.min(1, sW + dw);
+    log('B fired after A — synapse strengthened (+' + dw.toFixed(3) + ')', true);
+  }
+  updateW();
+}
+
+function flash(id, color) {
+  var el = document.getElementById(id);
+  el.style.background = color;
+  setTimeout(function(){ el.style.background = 'var(--color-border-tertiary)'; }, 350);
+}
+
+function updateBuckets() {
+  document.getElementById('fill-a').style.height = Math.min(pA / 0.65 * 100, 100) + '%';
+  document.getElementById('fill-b').style.height = Math.min(pB / 0.65 * 100, 100) + '%';
+  document.getElementById('pot-a-txt').textContent = 'V: ' + pA.toFixed(2);
+  document.getElementById('pot-b-txt').textContent = 'V: ' + pB.toFixed(2);
+}
+
+function updateW() {
+  document.getElementById('w-display').textContent = sW.toFixed(2);
+  document.getElementById('w-display').style.color = sW > 0.6 ? '#1D9E75' : sW < 0.3 ? '#E24B4A' : 'var(--color-text-primary)';
+}
+
+function log(msg, positive) {
+  var el = document.getElementById('stdp-log');
+  var d = document.createElement('div');
+  d.textContent = (positive ? '↑ ' : '↓ ') + msg;
+  d.style.color = positive ? '#1D9E75' : '#E24B4A';
+  el.insertBefore(d, el.firstChild);
+  if (el.children.length > 4) el.removeChild(el.lastChild);
+}
+
+function resetSTDP() {
+  pA = 0; pB = 0; sW = 0.5; lastA = -999; lastB = -999; sT = 0;
+  updateBuckets(); updateW();
+  document.getElementById('w-delta').textContent = '';
+  document.getElementById('stdp-log').innerHTML = '';
+}
+
+function demoStrengthen() {
+  resetSTDP();
+  pA += 0.4; if (pA >= 0.65) { pA = 0; fireA(); } updateBuckets();
+  setTimeout(function(){
+    pA += 0.4; if (pA >= 0.65) { pA = 0; fireA(); } updateBuckets();
+    setTimeout(function(){
+      pB += 0.4; if (pB >= 0.65) { pB = 0; fireB(); } updateBuckets();
+      setTimeout(function(){
+        pB += 0.4; if (pB >= 0.65) { pB = 0; fireB(); } updateBuckets();
+      }, 300);
+    }, 300);
+  }, 300);
+}
+
+function demoWeaken() {
+  resetSTDP();
+  pB += 0.4; if (pB >= 0.65) { pB = 0; fireB(); } updateBuckets();
+  setTimeout(function(){
+    pB += 0.4; if (pB >= 0.65) { pB = 0; fireB(); } updateBuckets();
+    setTimeout(function(){
+      pA += 0.4; if (pA >= 0.65) { pA = 0; fireA(); } updateBuckets();
+      setTimeout(function(){
+        pA += 0.4; if (pA >= 0.65) { pA = 0; fireA(); } updateBuckets();
+      }, 300);
+    }, 300);
+  }, 300);
+}
+</script>
